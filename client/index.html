@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flam Sync | Real-time Canvas</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header class="app-header">
+        <div class="logo">✨ Flam Sync</div>
+        <div class="status-indicator">
+            <span class="dot disconnected" id="connectionStatus"></span>
+            <span id="statusText">Connecting...</span>
+        </div>
+        <div class="active-users" id="usersList">
+            </div>
+    </header>
+
+    <div class="toolbar-container">
+        <div class="toolbar">
+            <div class="tool-group">
+                <input type="color" id="colorPicker" value="#000000" title="Color">
+            </div>
+            
+            <div class="divider"></div>
+
+            <div class="tool-group range-group">
+                <label for="brushSize" class="tool-label">Size</label>
+                <input type="range" id="brushSize" min="2" max="30" value="4">
+            </div>
+
+            <div class="divider"></div>
+
+            <button class="tool-btn" id="undoBtn" title="Undo (Global)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 7v6h6"></path>
+                    <path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"></path>
+                </svg>
+                <span>Undo</span>
+            </button>
+
+            <button class="tool-btn danger" id="clearBtn" title="Clear Canvas">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="mainCanvas"></canvas>   <canvas id="cursorCanvas"></canvas> </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

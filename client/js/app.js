@@ -1,12 +1,14 @@
 // client/js/app.js
 import { socketClient } from './socket.js';
 import { CanvasEngine } from './canvas.js';
+import { UIManager } from './ui.js';
 
 // Initialize
+const ui = new UIManager();
 socketClient.connect();
 const mainCanvas = new CanvasEngine('mainCanvas', socketClient);
 
-// Cursor Canvas (Separate layer for performance)
+// Cursor Setup
 const cursorCanvas = document.getElementById('cursorCanvas');
 const cursorCtx = cursorCanvas.getContext('2d');
 let remoteCursors = {};
@@ -20,78 +22,78 @@ resizeCursorCanvas();
 
 // --- Socket Events ---
 
-// 1. Initial State Sync
-socketClient.on('init', (data) => {
-    document.getElementById('connectionStatus').classList.remove('disconnected');
-    document.getElementById('connectionStatus').classList.add('connected');
-    document.getElementById('statusText').innerText = 'Connected';
-    
-    // Replay history
-    redrawHistory(data.history);
+socketClient.on('connect', () => {
+    ui.setConnectionStatus(true);
 });
 
-// 2. Real-time Drawing from others
+socketClient.on('disconnect', () => {
+    ui.setConnectionStatus(false);
+});
+
+socketClient.on('init', (data) => {
+    mainCanvas.clear();
+    data.history.forEach(action => {
+        mainCanvas.drawSmoothPath(action.points, action.color, action.width);
+    });
+});
+
 socketClient.on('draw_chunk', (data) => {
-    // We reuse the drawing engine's logic but on the main canvas
     mainCanvas.drawSmoothPath(data.points, data.color, data.width);
 });
 
-// 3. History Update (Undo/Redo or New User)
 socketClient.on('history_update', (history) => {
-    redrawHistory(history);
-});
-
-// 4. Cursor Updates
-socketClient.on('cursor_update', (data) => {
-    remoteCursors[data.id] = data; // {id, pos: {x,y}, color}
-});
-
-socketClient.on('user_left', (id) => {
-    delete remoteCursors[id];
-});
-
-// --- Helper Functions ---
-
-function redrawHistory(history) {
     mainCanvas.clear();
     history.forEach(action => {
         mainCanvas.drawSmoothPath(action.points, action.color, action.width);
     });
-}
+});
 
-// Cursor Animation Loop (60 FPS)
+socketClient.on('cursor_update', (data) => {
+    remoteCursors[data.id] = data;
+    
+    // Update User List in UI
+    const users = Object.keys(remoteCursors).map(id => ({
+        id: id,
+        color: remoteCursors[id].color
+    }));
+    ui.updateUserList(users);
+});
+
+socketClient.on('user_left', (id) => {
+    delete remoteCursors[id];
+    ui.showNotification("A user left the session");
+});
+
+// Cursor Animation Loop
 function renderCursors() {
     cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
-    
     Object.values(remoteCursors).forEach(user => {
         if (!user.pos) return;
-        const { x, y } = user.pos;
-        
         cursorCtx.beginPath();
         cursorCtx.fillStyle = user.color || '#ff0000';
-        cursorCtx.arc(x, y, 5, 0, Math.PI * 2);
+        cursorCtx.arc(user.pos.x, user.pos.y, 5, 0, Math.PI * 2);
         cursorCtx.fill();
         
-        // Optional: Draw name tag
+        // Draw ID
         cursorCtx.fillStyle = 'black';
         cursorCtx.font = '10px sans-serif';
-        cursorCtx.fillText('User ' + user.id.substr(0, 4), x + 8, y);
+        cursorCtx.fillText(user.id.slice(0, 4), user.pos.x + 8, user.pos.y);
     });
-    
     requestAnimationFrame(renderCursors);
 }
 requestAnimationFrame(renderCursors);
 
-// --- UI Interactions ---
-
-document.getElementById('colorPicker').addEventListener('change', (e) => {
-    mainCanvas.color = e.target.value;
-});
-
-document.getElementById('brushSize').addEventListener('change', (e) => {
-    mainCanvas.width = parseInt(e.target.value);
-});
-
+// UI Controls
+document.getElementById('colorPicker').addEventListener('change', (e) => mainCanvas.color = e.target.value);
+document.getElementById('brushSize').addEventListener('change', (e) => mainCanvas.width = parseInt(e.target.value));
 document.getElementById('undoBtn').addEventListener('click', () => {
     socketClient.emit('undo');
+    ui.showNotification("Undoing last stroke...");
+});
+document.getElementById('clearBtn').addEventListener('click', () => {
+    if(confirm("Clear canvas for everyone?")) {
+        // You can add a socket emit for clear here if your server supports it
+        // socketClient.emit('clear'); 
+        location.reload(); // Simple fallback
+    }
 });
